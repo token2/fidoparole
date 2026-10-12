@@ -76,7 +76,7 @@ Only USB keys are supported. NFC and smart-card readers are not used.
    and capacity.
 3. **Create a vault:** open *Create a new vault on this key*, give it a name (up to 32
    bytes, for example `Personal`), enter the key's PIN above and press *Create vault*.
-   The key **blinks twice — touch it each time**:
+   The key **blinks twice -  touch it each time**:
    - touch 1 creates the vault credential,
    - touch 2 unlocks the key's hmac-secret, which encrypts the vault.
 
@@ -116,12 +116,12 @@ the vault on it is gone.
 
 Backup → **Copy vault to another FIDO2 key…**
 
-1. Insert the target key (you may unplug the current one — the vault stays open in
+1. Insert the target key (you may unplug the current one -  the vault stays open in
    memory).
 2. Pick it in the list. The key the vault is on is marked *This vault's key* and
    can't be chosen. Two keys look alike? Use **Touch to pick**.
 3. Enter the **target key's PIN** and press **Copy to key**.
-4. The **target key blinks twice — touch it each time.** Then the vault is written;
+4. The **target key blinks twice -  touch it each time.** Then the vault is written;
    don't unplug it until the dialog closes.
 5. Choose whether to keep working with the current key or switch to the new one.
 
@@ -303,4 +303,4 @@ fidoparole/
 - largeBlob storage is small (a few KB on most keys): passwords and short notes, not
   files or attachments.
 - USB only, no NFC. On Windows, administrator rights are required.
-- No browser autofill: copy and paste, with automatic clipboard clearing.
+- No browser autofill (this needs a browser extension): copy and paste, with automatic clipboard clearing.
