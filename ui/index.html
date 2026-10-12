@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FidoParole</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="menubar">
+  <img src="logo-black.png" alt="TOKEN2" class="logo">
+  <span class="app-name">FidoParole</span>
+  <nav class="menus" id="menus" hidden>
+    <div class="menu" data-menu="vault"><button class="menu-btn">Vault</button>
+      <div class="dropdown">
+        <button data-mi="save">Save to key</button>
+        <button data-mi="lock">Lock</button>
+        <button data-mi="reconnect">Reconnect to key…</button>
+        <hr>
+        <button data-mi="settings">Settings…</button>
+        <hr>
+        <button data-mi="delete-vault" class="danger">Delete vault from key…</button>
+      </div></div>
+    <div class="menu" data-menu="backup"><button class="menu-btn">Backup</button>
+      <div class="dropdown">
+        <button data-mi="copy-key">Copy vault to another FIDO2 key…</button>
+        <hr>
+        <button data-mi="export">Export encrypted backup file…</button>
+        <button data-mi="import">Import backup file…</button>
+      </div></div>
+  </nav>
+  <div class="bar-right">
+    <div id="storage" class="storage" hidden title="largeBlob storage used on the key (all credentials)">
+      <div class="meter"><i></i></div><span></span>
+    </div>
+    <button id="btn-save" class="primary small" hidden>Save to key</button>
+    <button id="btn-settings" class="ghost icon-sm" title="Settings"><svg class="ico" viewBox="0 0 24 24"><path d="M3.34 17a10 10 0 0 1-.98-2.36 3 3 0 0 0 0-5.28A10 10 0 0 1 4.38 5.9a3 3 0 0 0 4.57-2.64 10 10 0 0 1 6.1 0 3 3 0 0 0 4.57 2.64A10 10 0 0 1 21.64 9.36a3 3 0 0 0 0 5.28 10 10 0 0 1-2.02 3.46 3 3 0 0 0-4.57 2.64 10 10 0 0 1-6.1 0A3 3 0 0 0 4.38 18.1 10 10 0 0 1 3.34 17ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg></button>
+    <button id="btn-lock" class="small" hidden><svg class="ico" viewBox="0 0 24 24"><path d="M6 10V8a6 6 0 1 1 12 0v2h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1h1Zm2 0h8V8a4 4 0 1 0-8 0v2Z"/></svg>Lock</button>
+  </div>
+</header>
+
+<div id="app">
+  <!-- ======================= LEFT PANEL ======================= -->
+  <aside id="side">
+    <section id="side-keys">
+      <div class="side-head">
+        <h2>Security keys</h2>
+        <span class="head-btns"><button type="button" id="btn-touch" class="ghost small" title="All keys blink — touch the one you want">Touch to pick</button><button id="btn-refresh" class="ghost icon-sm" title="Refresh"><svg class="ico" viewBox="0 0 24 24"><path d="M5.46 5.32A9.95 9.95 0 0 1 12 2.9c5.52 0 10 4.48 10 10h-2a8 8 0 0 0-13.12-6.15L9 9H3V3l2.46 2.32ZM18.54 19.68A9.95 9.95 0 0 1 12 22.1c-5.52 0-10-4.48-10-10h2a8 8 0 0 0 13.12 6.15L15 16h6v6l-2.46-2.32Z"/></svg></button></span>
+      </div>
+      <div id="device-list" class="device-list"></div>
+      <p id="env-note" class="hint" hidden></p>
+    </section>
+
+    <section id="side-entries" hidden>
+      <div class="search"><svg class="ico" viewBox="0 0 24 24"><path d="M18.03 16.62 22.3 20.9l-1.41 1.41-4.28-4.28a9 9 0 1 1 1.41-1.41ZM11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z"/></svg><input id="search" placeholder="Search" autocomplete="off" spellcheck="false"></div>
+      <button id="btn-new" class="primary wide"><svg class="ico" viewBox="0 0 24 24"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6Z"/></svg>New entry</button>
+      <div id="entry-list" class="entry-list"></div>
+      <p id="entry-count" class="hint"></p>
+    </section>
+  </aside>
+
+  <!-- ======================= MAIN ======================= -->
+  <main id="board">
+    <!-- locked: pick a key, unlock or create -->
+    <section id="view-locked">
+      <div id="admin-banner" class="banner warn" hidden><span id="admin-text"></span><button id="btn-elevate" class="small" hidden>Restart as administrator</button></div>
+      <div id="no-key" class="empty">
+        <div class="hero-ico"><svg viewBox="0 0 24 24"><path d="M10.76 11.83 18.6 3.98l1.42 1.41-1.42 1.42 2.48 2.47-1.42 1.42-2.47-2.48-1.42 1.42 2.12 2.12-1.41 1.41-2.12-2.12-2.2 2.2a5 5 0 1 1-1.4-1.42Zm-.64 6.29a3 3 0 1 0-4.24-4.24 3 3 0 0 0 4.24 4.24Z"/></svg></div>
+        <h1>Your passwords, on your key</h1>
+        <p>Insert a FIDO2 security key with <b>hmac-secret</b> and <b>largeBlob</b> support, then pick it on the left.</p>
+        <p class="hint">The vault is encrypted with a secret only the key can produce, stored in the key's own memory, and decrypted in memory only.</p>
+      </div>
+      <div id="key-view" hidden>
+        <div class="key-title">
+          <h1 id="kv-name">Security key</h1>
+          <span id="kv-transport" class="badge"></span>
+        </div>
+        <div id="kv-chips" class="chips"></div>
+        <div id="kv-problem" class="banner bad" hidden></div>
+
+        <div id="kv-actions">
+          <div class="card">
+            <h3>Unlock vault</h3>
+            <p class="hint" id="unlock-hint">Enter the key's FIDO2 PIN and touch the key when it blinks.</p>
+            <form id="form-unlock" class="inline-form">
+              <label id="lbl-pin">PIN<input id="pin" type="password" autocomplete="off" spellcheck="false"></label>
+              <button class="primary" type="submit"><svg class="ico" viewBox="0 0 24 24"><path d="M7 10h13a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1h1V9a7 7 0 0 1 13.45-2.71l-1.85.77A5 5 0 0 0 7 9v1Z"/></svg>Unlock</button>
+            </form>
+            <label id="lbl-uv" class="check" hidden><input type="checkbox" id="use-uv"> Use fingerprint instead of PIN</label>
+          </div>
+          <details class="card create">
+            <summary><h3>Create a new vault on this key</h3></summary>
+            <p class="hint" id="create-hint">Makes a discoverable credential (user verification required) and an empty encrypted vault in the key's largeBlob storage. Uses the PIN above. You will touch the key twice.</p>
+            <form id="form-create" class="inline-form">
+              <label>Vault name<input id="new-name" value="Personal" maxlength="32"></label>
+              <button type="submit">Create vault</button>
+            </form>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- several vaults on one key -->
+    <section id="view-choose" hidden>
+      <h1>Choose a vault</h1>
+      <p class="hint" id="choose-device"></p>
+      <div id="choose-list" class="choose-list"></div>
+      <button id="btn-choose-cancel" class="ghost">Cancel</button>
+    </section>
+
+    <!-- unlocked -->
+    <section id="view-vault" hidden>
+      <div id="dirty-banner" class="banner warn" hidden>
+        <span id="dirty-text">Unsaved changes — they exist only in memory until you save them to the key.</span>
+        <button id="btn-save2" class="primary small">Save to key</button>
+      </div>
+      <div id="entry-empty" class="empty">
+        <h1 id="vault-title">Vault</h1>
+        <p id="vault-sub"></p>
+      </div>
+      <form id="entry-form" class="entry" hidden autocomplete="off" onsubmit="return false">
+        <input id="f-title" class="title-input" placeholder="Title" spellcheck="false">
+        <div class="field">
+          <label for="f-username">Username</label>
+          <div class="row">
+            <input id="f-username" spellcheck="false">
+            <button type="button" class="icon" data-copy="username" title="Copy username"><svg class="ico" viewBox="0 0 24 24"><path d="M7 6V3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3v3c0 .55-.45 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3Zm2 0h7a1 1 0 0 1 1 1v9h2V4H9v2ZM5 8v12h10V8H5Z"/></svg></button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-password">Password</label>
+          <div class="row">
+            <input id="f-password" type="password" class="mono" spellcheck="false" autocomplete="new-password">
+            <button type="button" class="icon" id="btn-reveal" title="Show / hide"><svg class="ico" viewBox="0 0 24 24"><path d="M12 3c5.4 0 9.88 3.88 10.82 9-.94 5.12-5.42 9-10.82 9S2.12 17.12 1.18 12C2.12 6.88 6.6 3 12 3Zm0 16a9 9 0 0 0 8.78-7A9 9 0 0 0 3.22 12 9 9 0 0 0 12 19Zm0-2.5a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9Zm0-2a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/></svg></button>
+            <button type="button" class="icon" data-copy="password" title="Copy password"><svg class="ico" viewBox="0 0 24 24"><path d="M7 6V3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3v3c0 .55-.45 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3Zm2 0h7a1 1 0 0 1 1 1v9h2V4H9v2ZM5 8v12h10V8H5Z"/></svg></button>
+          </div>
+          <div class="gen">
+            <button type="button" id="btn-gen" class="small"><svg class="ico" viewBox="0 0 24 24"><path d="M18 2h-2v2h2v2h2V4h2V2h-2V0h-2v2ZM4 6h9a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Zm1 2v11h7V8H5Zm2.5 3a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm2 2.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm-2 2.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm2 2a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>Generate</button>
+            <label class="len">Length <input id="gen-len" type="range" min="8" max="64" value="20"><output id="gen-len-out">20</output></label>
+            <label class="check"><input type="checkbox" id="gen-upper" checked>A–Z</label>
+            <label class="check"><input type="checkbox" id="gen-lower" checked>a–z</label>
+            <label class="check"><input type="checkbox" id="gen-digits" checked>0–9</label>
+            <label class="check"><input type="checkbox" id="gen-symbols" checked>#$%</label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-url">Website</label>
+          <div class="row">
+            <input id="f-url" spellcheck="false" placeholder="https://">
+            <button type="button" class="icon" data-copy="url" title="Copy URL"><svg class="ico" viewBox="0 0 24 24"><path d="M7 6V3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3v3c0 .55-.45 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3Zm2 0h7a1 1 0 0 1 1 1v9h2V4H9v2ZM5 8v12h10V8H5Z"/></svg></button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-notes">Notes</label>
+          <textarea id="f-notes" rows="5" spellcheck="false"></textarea>
+        </div>
+        <footer class="entry-foot">
+          <span id="f-meta" class="hint"></span>
+          <button type="button" id="btn-del-entry" class="danger small">Delete entry</button>
+        </footer>
+      </form>
+    </section>
+  </main>
+</div>
+
+<!-- ======================= DIALOGS ======================= -->
+<dialog id="dlg-confirm">
+  <form method="dialog">
+    <h3 id="cf-title">Are you sure?</h3>
+    <p id="cf-text" class="hint"></p>
+    <menu><button value="cancel" class="ghost">Cancel</button><button value="ok" id="cf-ok" class="primary">OK</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlg-message">
+  <form method="dialog">
+    <h3 id="msg-title">Done</h3>
+    <p id="msg-text"></p>
+    <menu><button value="ok" class="primary">OK</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlg-reconnect">
+  <form method="dialog" id="form-reconnect">
+    <h3>Reconnect to the key</h3>
+    <p class="hint">Use this after unplugging the key, after the computer slept, or when saving says the key can't be reached. The vault stays open in memory; pick its key and touch it when it blinks. The PIN you unlocked with is reused, and it is only sent to a key of the same model.</p>
+    <div class="side-head"><b>Key</b><span class="head-btns"><button type="button" id="rc-touch" class="ghost small" title="All keys blink — touch the one you want">Touch to pick</button><button type="button" id="rc-refresh" class="ghost icon-sm" title="Refresh"><svg class="ico" viewBox="0 0 24 24"><path d="M5.46 5.32A9.95 9.95 0 0 1 12 2.9c5.52 0 10 4.48 10 10h-2a8 8 0 0 0-13.12-6.15L9 9H3V3l2.46 2.32ZM18.54 19.68A9.95 9.95 0 0 1 12 22.1c-5.52 0-10-4.48-10-10h2a8 8 0 0 0 13.12 6.15L15 16h6v6l-2.46-2.32Z"/></svg></button></span></div>
+    <div id="rc-devices" class="device-list compact"></div>
+    <p id="rc-err" class="err"></p>
+    <menu><button value="cancel" class="ghost" formnovalidate>Cancel</button><button value="ok" id="rc-ok" class="primary">Reconnect</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlg-delete">
+  <form method="dialog" id="form-delete">
+    <h3>Delete this vault from the key?</h3>
+    <div class="banner bad" style="margin-bottom:0">
+      <span>This permanently erases <b id="dv-name"></b> (<span id="dv-count"></span>) from <b id="dv-device"></b>: the encrypted data <i>and</i> the vault credential. It takes effect immediately and cannot be undone.</span>
+    </div>
+    <p class="hint">Copies on other keys and exported backup files are not affected. Without one of those, these passwords cannot be recovered by anyone, including Token2.</p>
+    <p id="dv-dirty" class="hint" hidden><b>There are unsaved changes.</b> They are not on the key or in any backup yet.</p>
+    <div class="row"><button type="button" id="dv-export">Export a backup first…</button></div>
+    <label class="check"><input type="checkbox" id="dv-ack"> I have a backup or a copy on another key, or I accept losing these passwords</label>
+    <label><span id="dv-confirm-lbl">Type the vault name to confirm</span><input id="dv-confirm" autocomplete="off" spellcheck="false"></label>
+    <p id="dv-err" class="err"></p>
+    <menu><button value="cancel" class="ghost" formnovalidate>Cancel</button><button value="ok" id="dv-ok" class="danger" disabled>Delete permanently</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlg-export">
+  <form method="dialog" id="form-export">
+    <h3>Export encrypted backup</h3>
+    <p class="hint">The file is encrypted with this passphrase (Argon2id + AES-256-GCM). It opens without any FIDO2 key, so keep the file and the passphrase apart.</p>
+    <label>Passphrase<input id="ex-pass" type="password" autocomplete="new-password"></label>
+    <label>Repeat passphrase<input id="ex-pass2" type="password" autocomplete="new-password"></label>
+    <p id="ex-err" class="err"></p>
+    <menu><button value="cancel" class="ghost" formnovalidate>Cancel</button><button value="ok" id="ex-ok" class="primary">Save file…</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlg-import">
+  <form method="dialog" id="form-import">
+    <h3>Import backup file</h3>
+    <div class="row file-row"><button type="button" id="im-pick">Choose file…</button><span id="im-file" class="hint">No file selected</span></div>
+    <label>Passphrase<input id="im-pass" type="password" autocomplete="off"></label>
+    <label class="check"><input type="radio" name="im-mode" value="merge" checked> Merge into this vault (the newest copy of each entry wins)</label>
+    <label class="check"><input type="radio" name="im-mode" value="replace"> Replace this vault with the backup</label>
+    <p id="im-err" class="err"></p>
+    <menu><button value="cancel" class="ghost" formnovalidate>Cancel</button><button value="ok" id="im-ok" class="primary">Import</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlg-copy">
+  <form method="dialog" id="form-copy">
+    <h3>Copy vault to another FIDO2 key</h3>
+    <ol class="steps">
+      <li>Insert the <b>target key</b>. You can unplug the current one — the vault stays open in memory.</li>
+      <li>Pick it below. Two keys look alike? Use <b>Touch to pick</b>.</li>
+      <li>Enter the <b>target key's PIN</b> and press <b>Copy to key</b>.</li>
+      <li>The target key blinks <b>twice</b>: touch it each time (on a fingerprint key, touch the sensor). The first touch creates the vault credential, the second unlocks that key's hmac-secret. Then the vault is written — don't unplug it until the dialog closes.</li>
+    </ol>
+    <p class="hint">Your entries are re-encrypted with the target key's own hmac-secret, so each key can open its copy on its own.</p>
+    <div class="side-head"><b>Target key</b><span class="head-btns"><button type="button" id="cp-touch" class="ghost small" title="All keys blink — touch the one you want">Touch to pick</button><button type="button" id="cp-refresh" class="ghost icon-sm" title="Refresh"><svg class="ico" viewBox="0 0 24 24"><path d="M5.46 5.32A9.95 9.95 0 0 1 12 2.9c5.52 0 10 4.48 10 10h-2a8 8 0 0 0-13.12-6.15L9 9H3V3l2.46 2.32ZM18.54 19.68A9.95 9.95 0 0 1 12 22.1c-5.52 0-10-4.48-10-10h2a8 8 0 0 0 13.12 6.15L15 16h6v6l-2.46-2.32Z"/></svg></button></span></div>
+    <div id="cp-devices" class="device-list compact"></div>
+    <p id="cp-info" class="hint"></p>
+    <div class="row two">
+      <label>Vault name<input id="cp-name" maxlength="32"></label>
+      <label>Target key PIN<input id="cp-pin" type="password" autocomplete="off"></label>
+    </div>
+    <p id="cp-err" class="err"></p>
+    <menu><button value="cancel" class="ghost" formnovalidate>Cancel</button><button value="ok" id="cp-ok" class="primary">Copy to key</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlg-copied">
+  <form method="dialog">
+    <h3>Vault copied</h3>
+    <p id="cd-text"></p>
+    <menu><button value="keep" class="ghost">Keep using the current key</button><button value="switch" class="primary">Switch to the new key</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlg-settings">
+  <form method="dialog">
+    <h3>Auto-lock</h3>
+    <p class="hint">Lock the vault and wipe it from memory after this much inactivity. With unsaved changes it waits four times as long, then locks and discards them.</p>
+    <label>Lock after
+      <select id="set-lock">
+        <option value="1">1 minute</option><option value="5">5 minutes</option><option value="15">15 minutes</option>
+        <option value="30">30 minutes</option><option value="60">1 hour</option>
+      </select>
+    </label>
+    <menu><button value="cancel" class="ghost">Cancel</button><button value="ok" class="primary">Apply</button></menu>
+  </form>
+</dialog>
+
+<dialog id="progress">
+  <div class="card">
+    <span id="progress-step" class="badge" hidden></span>
+    <div class="touch"><svg viewBox="0 0 24 24"><path d="M12 1a9 9 0 0 1 9 9v4a9 9 0 0 1-12.1 8.45l.37-.54.17-.28A11 11 0 0 0 11 16V9h2v7c0 1.77-.35 3.46-1 5a7 7 0 0 0 2.27-.38 15 15 0 0 0 .73-4.62V13h2v3c0 1.09-.1 2.15-.3 3.18A7 7 0 0 0 19 14v-4a7 7 0 0 0-11.19-5.6L6.38 2.96A9 9 0 0 1 12 1ZM7 10a5 5 0 0 1 10 0v1h-2v-1a3 3 0 0 0-6 0v6c0 1.57-.4 3.04-1.1 4.32a7 7 0 0 1-2.05.93A7 7 0 0 1 5 14v-4c0-1.29.32-2.5.89-3.57l1.42 1.43A5 5 0 0 0 7 10Z"/></svg></div>
+    <p id="progress-text">Touch your key…</p>
+    <p id="progress-hint" class="hint" hidden></p>
+    <div class="bar"><i></i></div>
+  </div>
+</dialog>
+<div id="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
