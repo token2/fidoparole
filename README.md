@@ -156,6 +156,16 @@ Hover a key for all details. If two keys still look the same, **Touch to pick** 
 every listed key blink and selects the one you touch. It is available in the key
 list, the copy dialog and the reconnect dialog.
 
+### Screenshots 
+
+<img width="1040" height="700" alt="image" src="https://github.com/user-attachments/assets/d5306a15-c47e-4479-a45f-2653d00f659b" />
+
+<img width="1040" height="700" alt="image" src="https://github.com/user-attachments/assets/320a1835-661a-4a7b-ac10-eff7e39bb644" />
+
+<img width="1040" height="700" alt="image" src="https://github.com/user-attachments/assets/5a4ac42f-d6dc-47e6-b7fc-0ae70cbb7687" />
+
+<img width="1040" height="700" alt="image" src="https://github.com/user-attachments/assets/d46a70dd-5ecf-4493-a997-61621ccd1468" />
+
 ## Security model
 
 **Protected against**
