@@ -1,6 +1,7 @@
 # FidoParole
-
+<img width="200" height="200"  align=right alt="image" src="https://github.com/user-attachments/assets/ef28f4c1-ef96-47be-8cd2-9a2d04f575aa" />
 **Your passwords, stored on your FIDO2 security key.**
+
 
 FidoParole is a small desktop password manager for Windows, Linux and macOS.
 There is no vault file on the computer and no cloud: the encrypted vault lives in
