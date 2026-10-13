@@ -57,6 +57,14 @@ function setProgress(step, text, hint) {
   $("#progress-hint").hidden = !hint;
   $("#progress-hint").textContent = hint || "";
 }
+/** Overlay text for a write to the key. With the PIN in memory no touch is
+ *  needed; after a fingerprint unlock the key asks for the fingerprint again. */
+function writePrompt(what) {
+  if (st.vault?.pinSaved) return [{ text: `${what}…`, hint: "No touch needed. Don't unplug the key until this closes." }];
+  return [{ step: "Fingerprint", text: `${what} — touch the fingerprint sensor when the key blinks.`,
+    hint: "You unlocked with your fingerprint, so the key checks it again before it changes its storage." }];
+}
+
 /** Step texts for creating a vault credential on `who` ("your key" / "the target key"). */
 function twoTouchSteps(who, label) {
   const on = label ? ` (${label})` : "";
@@ -75,7 +83,9 @@ async function call(cmd, args = {}, wait = null, steps = null) {
     if (keyBusy) throw "another key operation is still running";
     keyBusy = true;
     keySteps = steps;
-    setProgress(null, wait, null);
+    // `wait`: a text, or { step, text, hint } for the overlay.
+    if (typeof wait === "object") setProgress(wait.step, wait.text, wait.hint);
+    else setProgress(null, wait, null);
     // A modal dialog of its own, so it sits above any open dialog.
     if (!prog.open) prog.showModal();
   }
@@ -376,7 +386,7 @@ async function openEntry(id) {
   $("#f-url").value = e.url;
   $("#f-notes").value = e.notes;
   setPasswordPlaceholder(e.hasPassword);
-  $("#f-meta").textContent = `Created ${fmtTime(e.created)} · Modified ${fmtTime(e.modified)}`;
+  $("#f-meta").textContent = e.created ? `Created ${fmtTime(e.created)} · Modified ${fmtTime(e.modified)}` : `Modified ${fmtTime(e.modified)}`;
 }
 
 function setPasswordPlaceholder(has) {
@@ -487,7 +497,7 @@ async function saveToKey() {
   if (!st.vault) return;
   try {
     await flushPending();
-    const v = await call("save_to_key", {}, "Saving to the key — no touch needed, don't unplug it…");
+    const v = await call("save_to_key", {}, ...writePrompt("Saving to the key"));
     st.vault = v;
     renderVaultChrome();
     toast("Saved to the key");
@@ -544,7 +554,9 @@ async function submitReconnect(ev) {
   $("#rc-err").textContent = "";
   try {
     await flushPending();
-    const r = await call("reconnect", { path: rcTarget }, "Reconnecting — touch the key when it blinks…");
+    const r = await call("reconnect", { path: rcTarget }, st.vault?.pinSaved
+      ? "Reconnecting — touch the key when it blinks…"
+      : { step: "Fingerprint", text: "Reconnecting — touch the fingerprint sensor when the key blinks.", hint: "The key checks your fingerprint before it gives out the vault's secret." });
     $("#dlg-reconnect").close();
     st.vault = r.vault;
     renderVaultChrome();
@@ -718,7 +730,7 @@ async function submitDelete(ev) {
   if ($("#dv-ok").disabled) return;
   $("#dlg-delete").close();
   await attempt(async () => {
-    await call("delete_vault", {}, "Removing the vault from the key…");
+    await call("delete_vault", {}, ...writePrompt("Removing the vault from the key"));
     showLocked();
     refreshDevices();
     message("Vault deleted", "The vault was removed from the key.");

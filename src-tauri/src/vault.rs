@@ -109,11 +109,37 @@ pub struct Entry {
     pub modified: i64,
 }
 
+/// base64url without padding.
+fn b64url(b: &[u8]) -> String {
+    const A: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    let mut out = String::with_capacity(b.len() * 4 / 3 + 2);
+    for c in b.chunks(3) {
+        let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
+        for i in 0..=c.len() { out.push(A[(n >> (18 - 6 * i) & 63) as usize] as char); }
+    }
+    out
+}
+
+/// A new entry id: 48 random bits as 8 base64url characters.
+pub fn new_id() -> String {
+    b64url(&random::<6>())
+}
+
+/// Ids from the first format were UUIDs; they are shortened to the same
+/// 8-character form (their first 6 bytes), so an entry keeps its identity
+/// across formats and merging an old backup doesn't duplicate it.
+pub fn canon_id(id: &str) -> String {
+    match uuid::Uuid::parse_str(id) {
+        Ok(u) => b64url(&u.as_bytes()[..6]),
+        Err(_) => id.to_string(),
+    }
+}
+
 impl Entry {
     pub fn new(title: &str) -> Self {
         let t = now();
         let mut e = Entry::default();
-        e.id = uuid::Uuid::new_v4().to_string();
+        e.id = new_id();
         e.title = title.into();
         e.created = t;
         e.modified = t;
@@ -134,7 +160,7 @@ pub struct VaultData {
 
 impl Default for VaultData {
     fn default() -> Self {
-        VaultData { version: 1, entries: Vec::new(), modified: now() }
+        VaultData { version: wire::FORMAT, entries: Vec::new(), modified: now() }
     }
 }
 
@@ -144,8 +170,9 @@ impl VaultData {
     pub fn merge(&mut self, other: &VaultData) -> (usize, usize) {
         let (mut added, mut updated) = (0, 0);
         for e in &other.entries {
-            match self.entries.iter_mut().find(|x| x.id == e.id) {
-                Some(x) if e.modified > x.modified => { *x = e.clone(); updated += 1; }
+            match self.entries.iter_mut().find(|x| canon_id(&x.id) == canon_id(&e.id)) {
+                // Times are kept to the minute on the key, so compare minutes.
+                Some(x) if e.modified.div_euclid(60) > x.modified.div_euclid(60) => { *x = e.clone(); updated += 1; }
                 Some(_) => {}
                 None => { self.entries.push(e.clone()); added += 1; }
             }
@@ -154,7 +181,7 @@ impl VaultData {
     }
 
     fn to_compressed(&self) -> R<Zeroizing<Vec<u8>>> {
-        let json = Zeroizing::new(serde_json::to_vec(self).map_err(|e| e.to_string())?);
+        let json = Zeroizing::new(serde_json::to_vec(&wire::Vault::from(self)).map_err(|e| e.to_string())?);
         let mut enc = DeflateEncoder::new(Vec::with_capacity(json.len() + 64), Compression::best());
         enc.write_all(&json).map_err(|e| e.to_string())?;
         Ok(Zeroizing::new(enc.finish().map_err(|e| e.to_string())?))
@@ -166,7 +193,79 @@ impl VaultData {
             .take(MAX_PLAINTEXT)
             .read_to_end(&mut json)
             .map_err(|_| "vault data is corrupt (decompression failed)".to_string())?;
-        serde_json::from_slice(&json).map_err(|e| format!("vault data is corrupt: {e}"))
+        // Format 2 (compact) has a "v" key; format 1 is the plain struct.
+        let probe: serde_json::Value = serde_json::from_slice(&json).map_err(|e| format!("vault data is corrupt: {e}"))?;
+        let compact = probe.get("v").is_some();
+        drop(probe);
+        if compact {
+            let w: wire::Vault = serde_json::from_slice(&json).map_err(|e| format!("vault data is corrupt: {e}"))?;
+            if w.v > wire::FORMAT {
+                return Err(format!("this vault was saved by a newer FidoParole (format {}); update the app", w.v));
+            }
+            Ok(w.into())
+        } else {
+            let mut v: VaultData = serde_json::from_slice(&json).map_err(|e| format!("vault data is corrupt: {e}"))?;
+            for e in v.entries.iter_mut() { e.id = canon_id(&e.id); }
+            v.version = wire::FORMAT;
+            Ok(v)
+        }
+    }
+}
+
+/// Format 2, what is written to the key and to backup files: short keys,
+/// empty fields left out, 8-character ids, one timestamp in minutes. About
+/// half the size of format 1, which matters with 1–8 KB of largeBlob space.
+mod wire {
+    use super::{Entry, VaultData};
+    use serde::{Deserialize, Serialize};
+    use zeroize::{Zeroize, ZeroizeOnDrop};
+
+    pub const FORMAT: u32 = 2;
+
+    fn empty(s: &str) -> bool { s.is_empty() }
+
+    #[derive(Serialize, Deserialize, Default, Zeroize, ZeroizeOnDrop)]
+    pub struct E {
+        pub i: String,
+        #[serde(default, skip_serializing_if = "empty")] pub t: String,
+        #[serde(default, skip_serializing_if = "empty")] pub u: String,
+        #[serde(default, skip_serializing_if = "empty")] pub p: String,
+        #[serde(default, skip_serializing_if = "empty")] pub l: String,
+        #[serde(default, skip_serializing_if = "empty")] pub n: String,
+        /// Last modified, minutes since the Unix epoch.
+        #[serde(default)] pub m: i64,
+    }
+
+    #[derive(Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
+    pub struct Vault {
+        pub v: u32,
+        pub e: Vec<E>,
+    }
+
+    impl From<&VaultData> for Vault {
+        fn from(d: &VaultData) -> Self {
+            Vault {
+                v: FORMAT,
+                e: d.entries.iter().map(|x| E {
+                    i: x.id.clone(), t: x.title.clone(), u: x.username.clone(), p: x.password.clone(),
+                    l: x.url.clone(), n: x.notes.clone(), m: x.modified.div_euclid(60),
+                }).collect(),
+            }
+        }
+    }
+
+    impl From<Vault> for VaultData {
+        fn from(mut w: Vault) -> Self {
+            let entries = w.e.iter_mut().map(|x| {
+                let m = x.m * 60;
+                Entry {
+                    id: std::mem::take(&mut x.i), title: std::mem::take(&mut x.t), username: std::mem::take(&mut x.u),
+                    password: std::mem::take(&mut x.p), url: std::mem::take(&mut x.l), notes: std::mem::take(&mut x.n),
+                    created: 0, modified: m,
+                }
+            }).collect();
+            VaultData { version: FORMAT, entries, modified: super::now() }
+        }
     }
 }
 
@@ -375,7 +474,7 @@ mod tests {
         let mut a = sample();
         let mut b = a.clone();
         b.entries[0].password = "newer".into();
-        b.entries[0].modified += 10;
+        b.entries[0].modified += 120; // times are compared to the minute
         b.entries.push(Entry::new("Bank"));
         assert_eq!(a.merge(&b), (1, 1));
         assert_eq!(a.entries[0].password, "newer");
@@ -404,10 +503,42 @@ mod tests {
     }
 
     #[test]
+    fn format1_still_opens_and_ids_are_kept() {
+        // A vault as the first format wrote it: plain JSON with UUID ids.
+        let id = "3f2a9c1e-7b4d-4e8a-9f00-123456789abc";
+        let v1 = format!(r#"{{"version":1,"entries":[{{"id":"{id}","title":"GitHub","username":"emin","password":"pw","url":"","notes":"","created":1700000000,"modified":1700000600}}],"modified":1700000600}}"#);
+        let mut enc = DeflateEncoder::new(Vec::new(), Compression::best());
+        enc.write_all(v1.as_bytes()).unwrap();
+        let d = VaultData::from_compressed(&enc.finish().unwrap()).unwrap();
+        assert_eq!(d.version, 2);
+        assert_eq!(d.entries[0].id, canon_id(id));
+        assert_eq!(d.entries[0].id.len(), 8);
+        assert_eq!(d.entries[0].password, "pw");
+        // Re-saved as format 2 and read back.
+        let back = VaultData::from_compressed(&d.to_compressed().unwrap()).unwrap();
+        assert_eq!(back.entries[0].title, "GitHub");
+        assert_eq!(back.entries[0].modified, 1700000600 / 60 * 60);
+        // Merging an old-format copy of the same entry doesn't duplicate it.
+        let mut old = d.clone();
+        old.entries[0].id = id.to_string();
+        let mut cur = back.clone();
+        assert_eq!(cur.merge(&old), (0, 0));
+        assert_eq!(cur.entries.len(), 1);
+    }
+
+    #[test]
+    fn newer_format_is_refused() {
+        let mut enc = DeflateEncoder::new(Vec::new(), Compression::best());
+        enc.write_all(br#"{"v":9,"e":[]}"#).unwrap();
+        assert!(VaultData::from_compressed(&enc.finish().unwrap()).is_err());
+    }
+
+    #[test]
     fn compact_on_key() {
-        // ~40 typical entries should stay within a few KB after compression.
+        // 28 typical entries must fit 2 KB of largeBlob storage, libfido2's
+        // own overhead (~70 bytes) included.
         let mut v = VaultData::default();
-        for i in 0..40 {
+        for i in 0..28 {
             let mut e = Entry::new(&format!("Site {i}"));
             e.username = format!("user{i}@example.com");
             e.password = generate_password(&GenOptions::default());
@@ -415,7 +546,7 @@ mod tests {
             v.entries.push(e);
         }
         let blob = seal(&v, &[1u8; 32]).unwrap();
-        eprintln!("40 entries -> {} bytes", blob.len());
-        assert!(blob.len() < 4096);
+        eprintln!("28 entries -> {} bytes", blob.len());
+        assert!(blob.len() + 70 < 2048, "{} bytes", blob.len());
     }
 }

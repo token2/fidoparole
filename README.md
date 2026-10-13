@@ -1,8 +1,13 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo/wordmark-dark.svg">
+    <img src="assets/logo/wordmark.svg" alt="FidoParole" width="420">
+  </picture>
+</p>
+
+<p align="center"><b>Your passwords, stored on your FIDO2 security key.</b></p>
+
 # FidoParole
-<img width="200" height="200"  align=right alt="image" src="https://github.com/user-attachments/assets/ef28f4c1-ef96-47be-8cd2-9a2d04f575aa" />
-
-**Your passwords, stored on your FIDO2 security key.**
-
 
 FidoParole is a small desktop password manager for Windows, Linux and macOS.
 There is no vault file on the computer and no cloud: the encrypted vault lives in
@@ -78,7 +83,7 @@ Only USB keys are supported. NFC and smart-card readers are not used.
    and capacity.
 3. **Create a vault:** open *Create a new vault on this key*, give it a name (up to 32
    bytes, for example `Personal`), enter the key's PIN above and press *Create vault*.
-   The key **blinks twice -  touch it each time**:
+   The key **blinks twice — touch it each time**:
    - touch 1 creates the vault credential,
    - touch 2 unlocks the key's hmac-secret, which encrypts the vault.
 
@@ -98,16 +103,23 @@ vault, you choose which to open.
 | Copy | Click the copy button next to username, password or URL. The clipboard is cleared after 20 s, and the copy is kept out of clipboard history and cloud sync where the OS supports it. |
 | Show a password | The *Show / hide* button. Passwords are only sent to the window when you ask. |
 | Generate a password | *Generate* next to the password field; choose length and character sets. |
-| Save | **Save to key** (header or Vault menu). No touch needed. |
+| Save | **Save to key** (header or Vault menu). Unlocked with the PIN: no touch needed. Unlocked with a fingerprint: touch the sensor once more, since the key checks the fingerprint again before writing. |
 | Lock | **Lock**, or wait for the auto-lock. |
 | Auto-lock time | Gear icon → *Auto-lock* (1 min – 1 h). With unsaved changes it waits four times as long, then locks and **discards** them. |
 | Reconnect | Vault → **Reconnect to key…** after you unplugged the key or the computer slept. Pick the key (or *Touch to pick*) and touch it once. If saving fails, the app offers this itself and saves again afterwards. |
 | Delete the vault | Vault → **Delete vault from key…**. The dialog shows what will be lost, offers *Export a backup first*, and only proceeds after you tick the acknowledgement and type the vault name. Deletion is immediate and permanent. |
 
 **Storage meter.** The bar in the header shows how much of the key's largeBlob
-storage is used (by all vaults on the key). The vault is compressed before
-encryption; about 40 typical entries take 2–3 KB. Most keys offer a few KB, so keep
-notes short.
+storage is used (by all vaults on the key). About 135 bytes go to fixed overhead,
+then each typical entry (title, username, 20-character password, URL) takes about
+40–45 bytes; notes add their compressed length.
+
+| Key's largeBlob size | Typical entries that fit |
+|---|---|
+| 1 KB | ~19 |
+| 2 KB | ~50 |
+| 4 KB | ~110 |
+| 8 KB | ~240 |
 
 ## Backups and moving to another key
 
@@ -118,12 +130,12 @@ the vault on it is gone.
 
 Backup → **Copy vault to another FIDO2 key…**
 
-1. Insert the target key (you may unplug the current one -  the vault stays open in
+1. Insert the target key (you may unplug the current one — the vault stays open in
    memory).
 2. Pick it in the list. The key the vault is on is marked *This vault's key* and
    can't be chosen. Two keys look alike? Use **Touch to pick**.
 3. Enter the **target key's PIN** and press **Copy to key**.
-4. The **target key blinks twice -  touch it each time.** Then the vault is written;
+4. The **target key blinks twice — touch it each time.** Then the vault is written;
    don't unplug it until the dialog closes.
 5. Choose whether to keep working with the current key or switch to the new one.
 
@@ -157,16 +169,6 @@ privacy), so FidoParole shows what it can read freely to tell keys apart:
 Hover a key for all details. If two keys still look the same, **Touch to pick** makes
 every listed key blink and selects the one you touch. It is available in the key
 list, the copy dialog and the reconnect dialog.
-
-### Screenshots 
-
-<img width="1040" height="700" alt="image" src="https://github.com/user-attachments/assets/d5306a15-c47e-4479-a45f-2653d00f659b" />
-
-<img width="1040" height="700" alt="image" src="https://github.com/user-attachments/assets/320a1835-661a-4a7b-ac10-eff7e39bb644" />
-
-<img width="1040" height="700" alt="image" src="https://github.com/user-attachments/assets/5a4ac42f-d6dc-47e6-b7fc-0ae70cbb7687" />
-
-<img width="1040" height="700" alt="image" src="https://github.com/user-attachments/assets/d46a70dd-5ecf-4493-a997-61621ccd1468" />
 
 ## Security model
 
@@ -205,7 +207,7 @@ list, the copy dialog and the reconnect dialog.
 |------|--------------|
 | Create | `makeCredential` for RP `fido2-vault.token2`, resident key, credProtect = 3 (UV required), hmac-secret, largeBlobKey (touch 1). `getAssertion` with the fixed salt to get the hmac-secret output and the largeBlob key (touch 2). An empty vault is sealed and written with `largeBlobs`. |
 | Unlock | One discoverable `getAssertion` with PIN/UV and the salt, then a `largeBlobs` read for each vault credential found. |
-| Save | Fresh KDF salt and nonce, reseal, `largeBlobs` write (PIN token, no touch). |
+| Save | Fresh KDF salt and nonce, reseal, `largeBlobs` write. With the PIN in memory libfido2 gets a PIN token (no touch); after a fingerprint unlock it gets a UV token, so the key asks for the fingerprint. |
 | Copy | *Create* on the target key with the in-memory entries instead of an empty vault. |
 | Reconnect | getInfo AAGUID check, then `getAssertion` allowed only for the vault's credential id; the hmac-secret must match the open vault's. If the stored blob's hash changed meanwhile, the session is marked unsaved and the user is told. |
 | Delete | `largeBlobs` entry removed, then the credential (`credMgmt`). |
@@ -218,6 +220,14 @@ would reach the same secret.
 **Vault name:** stored in the credential's user handle (`0x01 ‖ 8 random bytes ‖ UTF-8 name`).
 
 **On-key format:** `"T2VLT" | v1 | kdf_salt[16] | nonce[12] | AES-256-GCM(deflate(JSON))`.
+
+The JSON is *format 2* (compact): `{"v":2,"e":[{"i":id,"t":title,"u":user,"p":password,"l":url,"n":notes,"m":minutes}]}`
+with empty fields left out, 8-character random ids, and the modified time in minutes
+since the epoch. It takes about half the space of format 1 (`{"version":1,"entries":[…]}`
+with UUID ids and second timestamps). Format 1 vaults and backups still open; they
+are written as format 2 on the next save, and UUID ids become their first 6 bytes in
+base64url, so merging an old backup still matches the same entries. There is no
+"created" date any more.
 The header is the AAD; key = HKDF-SHA256(hmac-secret, kdf_salt, info). libfido2
 adds its own largeBlob layer (AES-GCM under the per-credential largeBlobKey, raw
 DEFLATE).
@@ -302,6 +312,8 @@ fidoparole/
     src/vault.rs      data model, HKDF/AES-GCM sealing, Argon2id backups, generator (+ tests)
     src/platform.rs   elevation check, USB serial lookup, core-dump opt-out
     build.rs          links libfido2 (FIDO2_LIB_DIR, FIDO2_LIB_NAME, FIDO2_LINK_STATIC)
+    icons/            app icon (icon.png 512 px, icon.ico 16–256 px)
+  assets/logo/        logo: mark.svg, wordmark.svg (+ dark variants and PNG exports)
   build.ps1 / .cmd    Windows portable build
   build.sh            Linux / macOS build
 ```
@@ -315,4 +327,4 @@ fidoparole/
 - largeBlob storage is small (a few KB on most keys): passwords and short notes, not
   files or attachments.
 - USB only, no NFC. On Windows, administrator rights are required.
-- No browser autofill (this needs a browser extension): copy and paste, with automatic clipboard clearing.
+- No browser autofill: copy and paste, with automatic clipboard clearing.

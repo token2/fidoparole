@@ -52,7 +52,8 @@ p { margin: 0; }
 /* ---------- menubar ---------- */
 #menubar { height: 52px; display: flex; align-items: center; gap: 16px; padding: 0 18px; border-bottom: 1px solid var(--border); background: var(--bg); position: relative; z-index: 20; }
 #menubar .logo { height: 20px; }
-.app-name { font-weight: 600; color: var(--ink-soft); padding-left: 14px; border-left: 1px solid var(--border); line-height: 20px; }
+.app-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--ink); padding-left: 14px; border-left: 1px solid var(--border); line-height: 20px; }
+.app-mark { width: 24px; height: 24px; display: block; }
 .menus { display: flex; gap: 2px; margin-left: 6px; }
 .menu { position: relative; }
 .menu-btn { border: 0; background: transparent; min-height: 34px; padding: 0 12px; font-weight: 500; }

@@ -196,6 +196,9 @@ pub struct VaultView {
     device: String,
     /// HID path of the vault's key, so device lists can mark it.
     path: String,
+    /// Unlocked with the PIN (kept in memory). False after a fingerprint
+    /// unlock: then every write to the key asks for the fingerprint again.
+    pin_saved: bool,
     dirty: bool,
     used: usize,
     max: u64,
@@ -241,7 +244,7 @@ fn view(s: &Session, lock_minutes: u64) -> VaultView {
     let mut entries: Vec<Summary> = s.data.entries.iter().map(summary).collect();
     entries.sort_by_key(|e| e.title.to_lowercase());
     VaultView {
-        name: s.cred.name.clone(), device: s.device.clone(), path: s.path.clone(), dirty: s.dirty, used: s.used, max: s.max,
+        name: s.cred.name.clone(), device: s.device.clone(), path: s.path.clone(), pin_saved: s.pin.is_some(), dirty: s.dirty, used: s.used, max: s.max,
         lock_minutes, dirty_lock_minutes: lock_minutes * DIRTY_LOCK_FACTOR, notice: s.notice.clone(), entries,
     }
 }
