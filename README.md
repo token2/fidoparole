@@ -16,6 +16,16 @@ can decrypt it.
 
 *Parole* is the old word for a watchword or password, in French and in English.
 
+
+> [!WARNING]
+> **This is an experimental proof of concept, NOT a full-fledged password manager!**
+>
+> The limited `largeBlob` storage capacity of modern security keys typically allows only **30–50 passwords** to be stored.
+>
+> **Use with caution:** Some relying parties may store additional data in `largeBlob` alongside resident credentials. This is one of the intended purposes of `largeBlob`. Overfilling this storage may overwrite or interfere with data required by other applications, potentially breaking their functionality.
+>
+> **Use this tool at your own risk. Do not rely on it for managing important passwords or sensitive credentials.**
+
 ---
 
 ## Contents
@@ -108,6 +118,16 @@ vault, you choose which to open.
 | Auto-lock time | Gear icon → *Auto-lock* (1 min – 1 h). With unsaved changes it waits four times as long, then locks and **discards** them. |
 | Reconnect | Vault → **Reconnect to key…** after you unplugged the key or the computer slept. Pick the key (or *Touch to pick*) and touch it once. If saving fails, the app offers this itself and saves again afterwards. |
 | Delete the vault | Vault → **Delete vault from key…**. The dialog shows what will be lost, offers *Export a backup first*, and only proceeds after you tick the acknowledgement and type the vault name. Deletion is immediate and permanent. |
+
+### Screenshots 
+
+<img width="1040" height="700" alt="image" src="https://github.com/user-attachments/assets/d5306a15-c47e-4479-a45f-2653d00f659b" />
+
+<img width="1040" height="700" alt="image" src="https://github.com/user-attachments/assets/320a1835-661a-4a7b-ac10-eff7e39bb644" />
+
+<img width="1040" height="700" alt="image" src="https://github.com/user-attachments/assets/5a4ac42f-d6dc-47e6-b7fc-0ae70cbb7687" />
+
+<img width="1040" height="700" alt="image" src="https://github.com/user-attachments/assets/d46a70dd-5ecf-4493-a997-61621ccd1468" />
 
 **Storage meter.** The bar in the header shows how much of the key's largeBlob
 storage is used (by all vaults on the key). About 135 bytes go to fixed overhead,
