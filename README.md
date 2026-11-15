@@ -26,7 +26,11 @@ can decrypt it.
 >
 > **Use this tool at your own risk. Do not rely on it for managing important passwords or sensitive credentials.**
 
+
 ---
+
+> 📱 Source code for the mobile versions (Android and iOS) is available at **[token2/fidoparole-mobile](https://github.com/token2/fidoparole-mobile)**.
+
 
 ## Contents
 
